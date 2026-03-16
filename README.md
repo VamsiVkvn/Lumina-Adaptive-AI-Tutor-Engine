@@ -22,45 +22,54 @@ Bash
 # Create virtual environment
 python -m venv venv
 
-# Activate virtual environment (Windows)
-venv\Scripts\activate
-
 # Activate virtual environment (macOS/Linux)
 source venv/bin/activate
 
 # Install required packages
 pip install -r requirements.txt
 3. Configure Environment Variables
-Create a .env file in the root directory and add your Google Gemini API key:
+Create a .env file in the root directory:
 
 Plaintext
 GEMINI_API_KEY=your_actual_api_key_here
 DATABASE_URL=sqlite:///./peblo_quiz.db
 🚦 How to Run the Backend
-Start the local development server using Uvicorn:
+Start the local development server on Port 8002:
 
 Bash
-uvicorn main:app --reload
-The backend will be available at: http://127.0.0.1:8000
+uvicorn main:app --reload --port 8002
+The backend will be available at: http://127.0.0.1:8002
 
 🧪 How to Test Endpoints
-The easiest way to test the system is through the Interactive API Documentation (Swagger UI).
+Access the Interactive API Documentation (Swagger UI) at: http://127.0.0.1:8002/docs
 
-Open your browser and navigate to http://127.0.0.1:8000/docs.
+Step 1: Ingest – Use POST /ingest to upload a PDF. Note the document_id and chunk_id.
 
-Step 1: Ingest – Use POST /ingest to upload a PDF (e.g., vkvn.pdf). Note the document_id and chunk_id in the response.
+Step 2: Generate – Use POST /generate-quiz with a chunk_id. This triggers the AI engine and the Duplicate Detection logic.
 
-Step 2: Generate – Use POST /generate-quiz by passing a chunk_id. This triggers the AI engine and duplicate detection logic.
+Step 3: Submit – Use POST /submit-answer. Observe the is_correct boolean and the adaptive_feedback for mastery evaluation.
 
-Step 3: Submit – Use POST /submit-answer with a question_id and student_answer. Observe the adaptive_feedback field for the performance evaluation.
+🏗️ System Architecture & Optional Features
+1. Duplicate Question Detection
+Location: main.py -> POST /generate-quiz
 
-🏗️ System Architecture & Logic
-1. Document Ingestion
-Uses a Fixed-Size Chunking Strategy with a sliding window overlap. This ensures that semantic meaning is preserved at the boundaries of text segments, preventing context loss for the AI.
+Logic: Before calling the Gemini API, the system queries the database via SQLAlchemy filters to check if questions already exist for the given chunk_id.
 
-2. AI Orchestration & Validation
-Validation: Uses Pydantic to ensure AI responses follow a strict JSON schema (Question, 4 Options, Correct Answer).
+Effect: Eliminates UNIQUE constraint errors and reduces redundant LLM API costs.
 
+2. Schema Validation (Pydantic)
+Location: ai_engine.py
+
+Logic: Enforces a strict JSON structure (Question, Options, Correct Answer) on the AI's probabilistic output.
+
+Effect: Prevents runtime crashes caused by malformed or incomplete AI responses.
+
+3. Adaptive Learning Loop
+Location: main.py -> POST /submit-answer
+
+Logic: Implements text normalization and a logic gate that generates a "Mastery Signal" based on performance.
+
+Effect: Provides dynamic, real-time feedback that informs the system to increase or decrease difficulty.
 Duplicate Detection: A pre-write check verifies if questions already exist for a specific chunk, ensuring the system is idempotent and cost-effective.
 
 3. Adaptive Feedback Loop
