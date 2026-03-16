@@ -1,40 +1,32 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Boolean
-from sqlalchemy.orm import relationship, declarative_base
-
-Base = declarative_base()
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, UniqueConstraint
+from database import Base
 
 class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String)
-    grade = Column(Integer, nullable=True)
-    subject = Column(String, nullable=True)
 
 class ContentChunk(Base):
-    __tablename__ = "content_chunks"
+    __tablename__ = "chunks"
     id = Column(Integer, primary_key=True, index=True)
-    doc_id = Column(Integer, ForeignKey("documents.id"))
-    text = Column(Text)
-    topic = Column(String, nullable=True)
-    
-    questions = relationship("QuizQuestion", back_populates="source_chunk")
+    document_id = Column(Integer, ForeignKey("documents.id"))
+    content = Column(String)
 
-class QuizQuestion(Base):
-    __tablename__ = "quiz_questions"
+class Question(Base):
+    __tablename__ = "questions"
     id = Column(Integer, primary_key=True, index=True)
-    chunk_id = Column(Integer, ForeignKey("content_chunks.id"))
-    question_text = Column(Text)
-    question_type = Column(String) 
-    options = Column(Text, nullable=True) 
-    correct_answer = Column(String)
-    difficulty = Column(String) 
-    
-    source_chunk = relationship("ContentChunk", back_populates="questions")
+    chunk_id = Column(Integer, ForeignKey("chunks.id"))
+    question_text = Column(String, unique=True, nullable=False) # Bonus: Duplicate Detection
+    options = Column(String, nullable=True) # JSON string
+    correct_answer = Column(String, nullable=False)
+    difficulty = Column(String, default="medium")
+    question_type = Column(String)
 
-class StudentResponse(Base):
-    __tablename__ = "student_responses"
+    __table_args__ = (UniqueConstraint('question_text', name='_question_text_uc'),)
+
+class StudentProgress(Base):
+    __tablename__ = "progress"
     id = Column(Integer, primary_key=True, index=True)
-    question_id = Column(Integer, ForeignKey("quiz_questions.id"))
     student_id = Column(String)
-    selected_answer = Column(String)
+    question_id = Column(Integer, ForeignKey("questions.id"))
     is_correct = Column(Boolean)
